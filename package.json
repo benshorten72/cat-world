@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "express": "^5.1.0",
+    "globe.gl": "^2.42.0",
+    "three": "^0.178.0"
+  },
+  "name": "cat-world",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benshorten72/cat-world.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/benshorten72/cat-world/issues"
+  },
+  "homepage": "https://github.com/benshorten72/cat-world#readme",
+  "description": ""
+}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Main Page</title>
+  <style>
+    iframe {
+      width: 100vw;
+      height: 80vh;
+      border: none;
+    }
+
+    body {
+      padding: 25px;
+      background-color: #f0f1f3;
+      font-family: "Arial", sans-serif;
+    }
+
+    #place-picker-box {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #place-picker-container {
+      text-align: left;
+    }
+  </style>
+ 
+</head>
+
+<body>
+  <h1 style="position:absolute; z-index:2; color:white;">Cat World</h1>
+  <iframe id="iframe" src="globe.html"></iframe>
+  <h1>Hello</h1>
+  <div id="app">
+    <input id="message" type="text" />
+    <button id="sendMessage">Send Message</button>
+  </div>
+ <script>
+  
+  document.addEventListener("DOMContentLoaded", () => {
+    var button = document.querySelector("#sendMessage");
+    console.log('Button found:', button);
+    button.addEventListener("click", () => {
+      console.log("Button clicked!");
+      sendMessage();
+    });
+  });
+
+  function sendMessage() {
+    const iframe = document.getElementById('iframe');
+    if (!iframe) {
+      console.error('iframe not found');
+      return;
+    }
+
+    const msg = {
+      type: 'newData',
+      payload: [
+        {
+          lat: 42.7128,
+          lng: -44.0060,
+          img_file: "./cats/cat1.png",
+          snd_file: "./cats/cat1.mp3"
+        },
+                {
+          lat: 3.7128,
+          lng: -1.0060,
+          img_file: "./cats/cat1.png",
+          snd_file: "./cats/cat1.mp3"
+        },
+                {
+          lat: 10.7128,
+          lng: -4.0060,
+          img_file: "./cats/cat1.png",
+          snd_file: "./cats/cat1.mp3"
+        }
+      ]
+    };
+
+    console.log("Sending message:", msg);
+    iframe.contentWindow.postMessage(msg, '*');
+  }
+</script>
+
+</body>
+
+</html>
