@@ -84,6 +84,20 @@
   }
 </script>
 
+<body>
+  <h2>Upload a Cat Image</h2>
+  <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/api/posts">
+    <label for="caption">Caption:</label><br>
+    <input type="text" id="caption" name="caption" required><br><br>
+
+    <label for="image">Select image:</label><br>
+    <input type="file" id="image" name="image" accept="image/*" required><br><br>
+    <label>Meow MP3 File:</label>
+    <input type="file" id="audio" name="audio" accept=".mp3" required />
+
+    <button type="submit">Upload</button>
+  </form>
+</body>
 </body>
 
 </html>
