@@ -2,6 +2,7 @@ import multer from 'multer';
 import express from 'express';
 import crypto from 'crypto'
 
+import { validateBuffers } from './uploadMiddleware.js';
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -50,6 +51,12 @@ const multi_upload = upload.fields([
   { name: 'audio', maxCount: 1 }
 ])
 
+const verification = {
+  Pending:'PENDING',
+  Flagged:'FLAGGED',
+  Verified:'VERIFIED'
+}
+
 // Serve everything in the "public" folder
 app.use(express.static('public'));
 app.listen(PORT, () => {
@@ -62,41 +69,52 @@ app.post('/api/posts', multi_upload, async (req, res) => {
   //Lat and long maybe in req.body
   const imageFile = req.files.image?.[0];
   const audioFile = req.files.audio?.[0];
-  //This is what we need to send to s3
-  const buffer = await sharp(imageFile.buffer).resize({ height: image_height, width: image_width }).toBuffer();
-  const key = randomImageName();
-  const params = {
-    Bucket: BUCKET_NAME,
-    Key: key,
-    Body: buffer,
-    ContentType: imageFile.mimetype
-  }
-  const command = new PutObjectCommand(params);
-  await s3.send(command);
+  try {
+    await validateBuffers(req.files);
 
-  const audioKey = randomImageName();
-  const audioParams = {
-    Bucket: BUCKET_NAME,
-    Key: audioKey,
-    Body: audioFile.buffer,
-    ContentType: audioFile.mimetype
-  }
-  const audioCommand = new PutObjectCommand(audioParams);
-  await s3.send(audioCommand);
-  const catName = req.body.caption
-  const table_entry = {
-    TableName: "cat-world-table",
-    Item: {
-      key,
-      audioKey,
-      catName,
-      long: 30,
-      lat: 30,
-      time: new Date().toISOString()
+
+    //This is what we need to send to s3
+    const buffer = await sharp(imageFile.buffer).resize({ height: image_height, width: image_width }).toBuffer();
+    const key = randomImageName();
+    const imageKey = "photos/"+key
+    const params = {
+      Bucket: BUCKET_NAME,
+      Key: imageKey,
+      Body: buffer,
+      ContentType: imageFile.mimetype
     }
+    const command = new PutObjectCommand(params);
+    await s3.send(command);
+    const audioKey= "audio/"+key+".mp3"
+    const audioParams = {
+      Bucket: BUCKET_NAME,
+      Key: audioKey,
+      Body: audioFile.buffer,
+      ContentType: audioFile.mimetype
+    }
+    const audioCommand = new PutObjectCommand(audioParams);
+    await s3.send(audioCommand);
+    const catName = req.body.caption
+    const table_entry = {
+      TableName: "cat-world-table",
+      Item: {
+        key,
+        audioKey,
+        catName,
+        long: 30,
+        lat: 30,
+        time: new Date().toISOString(),
+        imageVerified: verification.Pending,
+        audioVerified: verification.Pending
+      }
+    }
+    // I need to strip photos/ from lambda function whne looking up table
+    console.log("Entry:",table_entry)
+    await ddb.send(new PutCommand(table_entry))
+    res.send({});
+  } catch (err) {
+    res.status(400).send({ error: err.message });
   }
-  await ddb.send(new PutCommand(table_entry))
-  res.send({});
 })
 
 const scan = {
@@ -109,7 +127,7 @@ app.get('/api/posts', async (req, res) => {
   for (const cat of cat_data.Items) {
     const getObjectParams = {
       Bucket: BUCKET_NAME,
-      Key: cat.key
+      Key: "photos/"+cat.key
     }
     const getObjectParamsAudio = {
       Bucket: BUCKET_NAME,
@@ -126,5 +144,5 @@ app.get('/api/posts', async (req, res) => {
   console.log(cat_data)
 
   // res.send(cat_data.Items[0].audioUrl);
-  res.send("Sucess, probably")
+  res.send(cat_data)
 })

@@ -1,0 +1,22 @@
+{
+  "name": "lambda",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.848.0",
+    "@aws-sdk/client-rekognition": "^3.848.0",
+    "@aws-sdk/client-transcribe": "^3.848.0",
+    "@aws-sdk/util-dynamodb": "^3.848.0",
+    "bad-words": "^4.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "type":"module"
+
+}
