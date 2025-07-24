@@ -12,11 +12,11 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.848.0",
     "@aws-sdk/client-rekognition": "^3.848.0",
+    "@aws-sdk/client-s3": "^3.850.0",
     "@aws-sdk/client-transcribe": "^3.848.0",
     "@aws-sdk/util-dynamodb": "^3.848.0",
     "bad-words": "^4.0.0",
     "node-fetch": "^3.3.2"
   },
-  "type":"module"
-
+  "type": "module"
 }

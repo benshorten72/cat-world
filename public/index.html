@@ -26,7 +26,7 @@
       text-align: left;
     }
   </style>
- 
+
 </head>
 
 <body>
@@ -34,70 +34,58 @@
   <iframe id="iframe" src="globe.html"></iframe>
   <h1>Hello</h1>
   <div id="app">
-    <input id="message" type="text" />
-    <button id="sendMessage">Send Message</button>
+    <button id="loadCats">Load Cats</button>
   </div>
- <script>
-  
-  document.addEventListener("DOMContentLoaded", () => {
-    var button = document.querySelector("#sendMessage");
-    console.log('Button found:', button);
-    button.addEventListener("click", () => {
-      console.log("Button clicked!");
-      sendMessage();
+  <script>
+
+    document.addEventListener("DOMContentLoaded", () => {
+      var button = document.querySelector("#loadCats");
+      console.log('Button found:', button);
+      button.addEventListener("click", () => {
+        console.log("Button clicked!");
+        loadCats();
+      });
     });
-  });
 
-  function sendMessage() {
-    const iframe = document.getElementById('iframe');
-    if (!iframe) {
-      console.error('iframe not found');
-      return;
-    }
-
-    const msg = {
-      type: 'newData',
-      payload: [
-        {
-          lat: 42.7128,
-          lng: -44.0060,
-          img_file: "./cats/cat1.png",
-          snd_file: "./cats/cat1.mp3"
-        },
-                {
-          lat: 3.7128,
-          lng: -1.0060,
-          img_file: "./cats/cat1.png",
-          snd_file: "./cats/cat1.mp3"
-        },
-                {
-          lat: 10.7128,
-          lng: -4.0060,
-          img_file: "./cats/cat1.png",
-          snd_file: "./cats/cat1.mp3"
-        }
-      ]
-    };
-
-    console.log("Sending message:", msg);
-    iframe.contentWindow.postMessage(msg, '*');
+async function loadCats() {
+  const iframe = document.getElementById('iframe');
+  if (!iframe) {
+    console.error('iframe not found');
+    return;
   }
-</script>
 
-<body>
-  <h2>Upload a Cat Image</h2>
-  <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/api/posts">
-    <label for="caption">Caption:</label><br>
-    <input type="text" id="caption" name="caption" required><br><br>
+  try {
+    const res = await fetch('/api/posts');
+    const data = await res.json();
+    console.log("payload", data.payload);
+          const msg = {
+        type: 'newData',
+        payload: data.payload
+      };
 
-    <label for="image">Select image:</label><br>
-    <input type="file" id="image" name="image" accept="image/*" required><br><br>
-    <label>Meow MP3 File:</label>
-    <input type="file" id="audio" name="audio" accept=".mp3" required />
+      console.log("Sending message:", msg);
+      iframe.contentWindow.postMessage(msg, '*');
+  } catch (err) {
+    console.error(err);
+  }
+}
 
-    <button type="submit">Upload</button>
-  </form>
-</body>
+  </script>
+
+  <body>
+    <h2>Upload a Cat Image</h2>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/api/posts">
+      <label for="caption">Caption:</label><br>
+      <input type="text" id="caption" name="caption" required><br><br>
+
+      <label for="image">Select image:</label><br>
+      <input type="file" id="image" name="image" accept="image/*" required><br><br>
+      <label>Meow MP3 File:</label>
+      <input type="file" id="audio" name="audio" accept=".mp3" required />
+
+      <button type="submit">Upload</button>
+    </form>
+  </body>
 </body>
 
 </html>

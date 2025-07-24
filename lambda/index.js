@@ -1,8 +1,9 @@
 import { RekognitionClient, DetectModerationLabelsCommand, DetectLabelsCommand, DetectTextCommand } from "@aws-sdk/client-rekognition";
 import { TranscribeClient, StartTranscriptionJobCommand, GetTranscriptionJobCommand } from "@aws-sdk/client-transcribe";
 import { Filter } from 'bad-words';
-import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, UpdateItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall } from '@aws-sdk/util-dynamodb';
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 
 
@@ -12,24 +13,63 @@ export const handler = async (event) => {
     const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
     const dbKey = key.split('/').pop();
     const dbKeySanitsied = dbKey.replace(/\.mp3$/, '');
-      const verification = {
-        Pending:'PENDING',
-        Flagged:'FLAGGED',
-        Verified:'VERIFIED'
+    const verification = {
+        Pending: 'PENDING',
+        Flagged: 'FLAGGED',
+        Verified: 'VERIFIED'
+    }
+    const deleteKeyCompletely = async (sanitisedDBKey, audioBool) => {
+        const bucketName = "cat-world";
+        const s3Client = new S3Client({});
+        const ddbClient = new DynamoDBClient({});
+        console.log(`Deleting ${sanitisedDBKey} from S3 and DynamoDB...`);
+
+        let bucketKey = audioBool
+            ? `audio/${sanitisedDBKey}.mp3`
+            : `photos/${sanitisedDBKey}`;
+
+        // Delete from S3
+        try {
+            console.log("Deleting from S3:", bucketKey);
+            const deleteS3Command = new DeleteObjectCommand({
+                Bucket: bucketName,
+                Key: bucketKey,
+            });
+            const s3Response = await s3Client.send(deleteS3Command);
+            console.log(`✅ Deleted from S3: ${bucketKey}`, JSON.stringify(s3Response, null, 2));
+        } catch (err) {
+            console.error("❌ Failed to delete from S3:", err);
         }
+
+        // Delete from DynamoDB
+        try {
+            console.log("Deleting from DynamoDB:", sanitisedDBKey);
+            const deleteDynamoCommand = new DeleteItemCommand({
+                TableName: "cat-world-table",
+                Key: marshall({ key: sanitisedDBKey }),
+            });
+            const dynamoResponse = await ddbClient.send(deleteDynamoCommand);
+            console.log(`✅ Deleted from DynamoDB: ${sanitisedDBKey}`, JSON.stringify(dynamoResponse, null, 2));
+        } catch (err) {
+            console.error("❌ Failed to delete from DynamoDB:", err);
+        }
+        console.log(`Deleted ${sanitisedDBKey} from S3 and DynamoDB.`);
+    };
 
     const updateStatusInDynamo = async (sanitisedDBKey, field, status) => {
         console.log(`Updating ${field} to ${status} for ${sanitisedDBKey}`);
         const ddbClient = new DynamoDBClient({});
         const dbCommand = new UpdateItemCommand({
             TableName: "cat-world-table",
-            Key: marshall({ key: sanitisedDBKey }),
+            Key: {
+                key: { S: sanitisedDBKey }
+            },
             UpdateExpression: `SET ${field} = :status`,
-            ExpressionAttributeValues: marshall({
-                ":status": status
-            })
+            ExpressionAttributeValues: {
+                ":status": { S: status }
+            }
         });
-
+    
         try {
             await ddbClient.send(dbCommand);
             console.log(`${field} updated to ${status} for ${sanitisedDBKey}`);
@@ -37,7 +77,7 @@ export const handler = async (event) => {
             console.error("DynamoDB update error:", err);
         }
     };
-
+    
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -66,7 +106,9 @@ export const handler = async (event) => {
                 console.log("Image flagged as inappropriate. Setting as flagged...");
 
                 // Set asflagged in DB
-                updateStatusInDynamo(dbKeySanitsied,"imageVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "imageVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, false)
+
                 throw new Error("Moderation labels detected")
             }
             const textCommand = new DetectTextCommand({
@@ -85,7 +127,13 @@ export const handler = async (event) => {
 
             if (allText.length > 0) {
                 console.log("Detected text:");
-                updateStatusInDynamo(dbKeySanitsied,"imageVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "imageVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, false)
+                console.log("deleting")
+                return {
+                    statusCode: 200,
+                    body: 'Deleted'
+                };
                 throw new Error("Text detected.");
 
             }
@@ -111,22 +159,40 @@ export const handler = async (event) => {
 
             if (hasPerson) {
                 console.log("Person detected. Setting as flagged...");
-                updateStatusInDynamo(dbKeySanitsied,"imageVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "imageVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, false)
+                console.log("deleting")
+                return {
+                    statusCode: 200,
+                    body: 'Deleted'
+                };
                 throw new Error("Person Detected.");
             }
             if (!hasCat) {
                 console.log("No cat detected. Setting as flagged...");
-                updateStatusInDynamo(dbKeySanitsied,"imageVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "imageVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, false)
+                console.log("deleting")
+                return {
+                    statusCode: 200,
+                    body: 'Deleted'
+                };
                 throw new Error("No cat in image.");
             }
             console.log("Image Verified, submitting to DB",);
-            updateStatusInDynamo(dbKeySanitsied,"imageVerified",verification.Verified)
+            await updateStatusInDynamo(dbKeySanitsied, "imageVerified", verification.Verified)
             return {
-                    statusCode: 200,
-                    body: 'Cat found, all good.'
-                };
+                statusCode: 200,
+                body: 'Cat found, all good.'
+            };
             // SET verified
         } catch (err) {
+            await deleteKeyCompletely(dbKeySanitsied, false)
+            console.log("deleting")
+            return {
+                statusCode: 200,
+                body: 'Deleted'
+            };
             console.error("Rekognition error:", err);
         }
 
@@ -176,9 +242,15 @@ export const handler = async (event) => {
                     console.log("Transcript URL:", transcriptUri);
                     break;
                 } else if (status === "FAILED") {
-                    updateStatusInDynamo(dbKeySanitsied,"audioVerified",verification.Flagged)
+                    await updateStatusInDynamo(dbKeySanitsied, "audioVerified", verification.Flagged)
+                    await deleteKeyCompletely(dbKeySanitsied, true)
+                    console.log("deleting")
+                    return {
+                        statusCode: 200,
+                        body: 'Deleted'
+                    };
                     throw new Error("Transcription failed.");
-                    
+
                 }
 
                 attempts++;
@@ -186,7 +258,14 @@ export const handler = async (event) => {
             }
 
             if (attempts === maxAttempts) {
-                updateStatusInDynamo(dbKeySanitsied,"audioVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "audioVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, true)
+                console.log("deleting")
+                return {
+                    statusCode: 200,
+                    body: 'Deleted'
+                };
+
                 throw new Error("Transcription timed out.");
             }
 
@@ -196,15 +275,21 @@ export const handler = async (event) => {
             const transcriptText = data.results.transcripts.map(t => t.transcript).join(" ").toLowerCase();
             console.log("Transcript Text:", transcriptText);
             const filter = new Filter();
-            filter.addWords("some bad words i wont have on my git")
+            filter.addWords("not having these on my github no thank youuu")
             if (!filter.isProfane(transcriptText)) {
                 console.log("Audio transcribed, no issue found")
-                updateStatusInDynamo(dbKeySanitsied,"audioVerified",verification.Verified)
+                await updateStatusInDynamo(dbKeySanitsied, "audioVerified", verification.Verified)
                 // Set as verfiied in DB
             } else {
                 //set as flagged in DB
                 console.error("Audio transcribed, issue found with profanity")
-                updateStatusInDynamo(dbKeySanitsied,"audioVerified",verification.Flagged)
+                await updateStatusInDynamo(dbKeySanitsied, "audioVerified", verification.Flagged)
+                await deleteKeyCompletely(dbKeySanitsied, true)
+                console.log("deleting")
+                return {
+                    statusCode: 200,
+                    body: 'Deleted'
+                };
                 throw new Error("Transcription profanity.");
 
             }
@@ -212,8 +297,6 @@ export const handler = async (event) => {
         } catch (err) {
             console.error(" Transcribe error:", err);
             //Flag if issue
-            updateStatusInDynamo(dbKeySanitsied,"audioVerified",verification.Flagged)
-
         }
     } else {
         console.log("Unsupported file prefix.", key);
