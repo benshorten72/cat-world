@@ -4,88 +4,219 @@
 <head>
   <title>Main Page</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Radio+Canada:ital,wght@0,300..700;1,300..700&display=swap');
+
+    .tooltip-container {
+      display: inline-block;
+      position: relative;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+
+    .tooltip-icon {
+      background-color: #f5c518;
+      color: #000;
+      border-radius: 50%;
+      padding: 0 6px;
+      font-weight: bold;
+      font-size: 14px;
+      line-height: 18px;
+      text-align: center;
+      display: inline-block;
+    }
+
+    .tooltip-text {
+      visibility: hidden;
+      background-color: #333;
+      color: #fff;
+      text-align: left;
+      border-radius: 4px;
+      padding: 8px;
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      left: 110%;
+      /* Push right of the icon */
+      transform: translateY(-50%);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .tooltip-container:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
     iframe {
-      width: 100vw;
-      height: 80vh;
+      width: 100%;
+      height: 100%;
       border: none;
+      display: block;
+    }
+
+    h1 {
+      font-family: "Archivo Black", sans-serif;
+      filter: drop-shadow(.02em .1em orange);
+      margin: 0 41.2%;
+      width: fit-content;
+      margin-top: 1%;
+      font-size: 400%;
+      white-space: nowrap;
+      color: #eee3c7;
+      position: absolute;
     }
 
     body {
-      padding: 25px;
-      background-color: #f0f1f3;
-      font-family: "Arial", sans-serif;
+      background-color: #010314;
+      margin: 0;
+      padding: 0;
     }
 
-    #place-picker-box {
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
     }
 
-    #place-picker-container {
-      text-align: left;
+    #loadCats {
+      filter: drop-shadow(.02em .1em orange);
+      font-family: "Archivo Black", sans-serif;
+      font-size: 150%;
+      background-color: rgba(238, 227, 199, .9);
+      position: absolute;
+      top: 50%;
+      left: 80%;
+      border-radius: 10%;
+    }
+
+    #catCont {
+      position: absolute;
+      top: 50%;
+      left: 1%;
+      font-family: "Radio Canada", sans-serif;
+      transform: translateY(-50%);
+      background-color: rgba(30, 32, 52, 0.8);
+      color: #f0f1f3;
+      z-index: 10;
+      padding: 20px;
+      border-radius: 0 10px 10px 0;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.4);
+      width: 250px;
     }
   </style>
 
 </head>
 
-<body>
-  <h1 style="position:absolute; z-index:2; color:white;">Cat World</h1>
+<body onload="loadCats()">
+  <h1>Cat World</h1>
   <iframe id="iframe" src="globe.html"></iframe>
-  <h1>Hello</h1>
-  <div id="app">
-    <button id="loadCats">Load Cats</button>
+
+  <div id="catCont">
+    <h2>Upload a Cat</h2>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/api/posts">
+      <label for="caption">Cat Name:</label><br>
+      <input type="text" id="caption" name="caption" type="text" id="username" name="username" pattern="[A-Za-z]+" maxlength="16"
+        title="Cat Name" required><br><br>
+      <div class="tooltip-container">
+        <div class="tooltip-icon">!</div>
+        <div class="tooltip-text">
+          .img or .jpg only. Ensure no text or person is in image as it will get flagged by AI detector. No explicit
+          content permitted.
+        </div>
+      </div>
+      <label for="image">Select image:</label><br>
+      <input type="file" id="image" name="image" accept="image/*" required><br><br>
+      <div class="tooltip-container">
+        <div class="tooltip-icon">!</div>
+        <div class="tooltip-text">
+          Max duration 5 seconds, MP3 only. Ensure no talking occurs as it will get flagged by AI detector. No explicit
+          content permitted
+        </div>
+      </div>
+
+      <label>Meow MP3 File:</label>
+      <input type="file" id="audio" name="audio" accept=".mp3" required />
+      <input id="autocomplete" type="text" placeholder="Enter a city" required />
+      <input type="hidden" name="latitude" id="latitude" />
+      <input type="hidden" name="longitude" id="longitude" />
+
+      <button type="submit">Upload</button>
+    </form>
+
   </div>
-  <script>
-
-    document.addEventListener("DOMContentLoaded", () => {
-      var button = document.querySelector("#loadCats");
-      console.log('Button found:', button);
-      button.addEventListener("click", () => {
-        console.log("Button clicked!");
-        loadCats();
-      });
+  <button id="loadCats">Load Cats</button>
+</body>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    var button = document.querySelector("#loadCats");
+    console.log('Button found:', button);
+    button.addEventListener("click", () => {
+      console.log("Button clicked!");
+      loadCats();
     });
+  });
+    document.getElementById("caption").addEventListener("input", function (e) {
+    this.value = this.value.replace(/[^A-Za-z]/g, '');
+  });
+  let autocomplete;
+  let placeSelected = false;
 
-async function loadCats() {
-  const iframe = document.getElementById('iframe');
-  if (!iframe) {
-    console.error('iframe not found');
-    return;
+  function initAutocomplete() {
+    const input = document.getElementById("autocomplete");
+    autocomplete = new google.maps.places.Autocomplete(input);
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) {
+        placeSelected = false;
+        return;
+      }
+
+      placeSelected = true;
+      document.getElementById("latitude").value = place.geometry.location.lat();
+      document.getElementById("longitude").value = place.geometry.location.lng();
+    });
   }
 
-  try {
-    const res = await fetch('/api/posts');
-    const data = await res.json();
-    console.log("payload", data.payload);
-          const msg = {
+  function handleFormSubmit(event) {
+    if (!placeSelected) {
+      alert("Please select a valid place from the dropdown.");
+      return false;
+    }
+    return true;
+  }
+
+  // Load Google Maps with callback
+  window.initAutocomplete = initAutocomplete;
+
+  async function loadCats() {
+    const iframe = document.getElementById('iframe');
+    if (!iframe) {
+      console.error('iframe not found');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/posts');
+      const data = await res.json();
+      console.log("payload", data.payload);
+      const msg = {
         type: 'newData',
         payload: data.payload
       };
 
       console.log("Sending message:", msg);
       iframe.contentWindow.postMessage(msg, '*');
-  } catch (err) {
-    console.error(err);
+    } catch (err) {
+      console.error(err);
+    }
   }
-}
 
-  </script>
-
-  <body>
-    <h2>Upload a Cat Image</h2>
-    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/api/posts">
-      <label for="caption">Caption:</label><br>
-      <input type="text" id="caption" name="caption" required><br><br>
-
-      <label for="image">Select image:</label><br>
-      <input type="file" id="image" name="image" accept="image/*" required><br><br>
-      <label>Meow MP3 File:</label>
-      <input type="file" id="audio" name="audio" accept=".mp3" required />
-
-      <button type="submit">Upload</button>
-    </form>
-  </body>
-</body>
+</script>
+<script
+  async defer></script>
 
 </html>

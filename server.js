@@ -97,15 +97,18 @@ app.post('/api/posts', multi_upload, async (req, res) => {
     }
     const audioCommand = new PutObjectCommand(audioParams);
     await s3.send(audioCommand);
-    const catName = req.body.caption
+    const catName = req.body.caption 
+    const latitude = req.body.latitude
+    const longitude = req.body.longitude
+    
     const table_entry = {
       TableName: "cat-world-table",
       Item: {
         key,
         audioKey,
         catName,
-        long: 30,
-        lat: 30,
+        long: longitude,
+        lat: latitude,
         time: new Date().toISOString(),
         imageVerified: verification.Pending,
         audioVerified: verification.Pending
