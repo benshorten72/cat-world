@@ -8,30 +8,50 @@
 <body>
   <div id="globeViz"></div>
   <script>
-    const markerSvg = `
-      <div class="holder" style="
-        position: relative;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-      ">
-        <img src="loading.png" class="cat-img" style="width: 100%; height: 100%; object-fit: cover; border-bottom-color: black; border-bottom-style:solid;border-bottom-width:3px" />
-        <img src="playButton.png" class="meow-btn"
-          style="
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
-            background: white;
-            padding:2px;
-          " />
-        <div class="progress-container" style="width: 100%; height: 5px; background: #fff;">
-          <div class="progress-bar" style="height: 100%; width: 0%; background: #E66297;"></div>
-        </div>
-      </div>
-    `;
+const markerSvg = `
+  <div class="holder" style="
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  ">
+
+    <img src="loading.png" class="cat-img" style="
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-bottom: 3px solid black;
+    " />
+        <div class="cat-title" style="
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 2px;
+      text-align: center;
+      max-width: 100%;
+      height:100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display:none;
+    "></div>
+    <img src="playButton.png" class="meow-btn"
+      style="
+        width: 25px;
+        height: 25px;
+        cursor: pointer;
+        background: white;
+        padding:2px;
+      " />
+    <div class="progress-container" style="width: 100%; height: 5px; background: #fff;">
+      <div class="progress-bar" style="height: 100%; width: 0%; background: #E66297;"></div>
+    </div>
+  </div>
+`;
+
+
 
     const originalSrc = 'playButton.png';
     const playingSrc = 'pauseButton.png';
@@ -84,7 +104,8 @@
         };
 
         if (cat_img) cat_img.src = `${catImage}`;
-
+        const catTitle = el.querySelector('.cat-title');
+        if (catTitle) catTitle.textContent = d.catName || 'Unnamed Cat';
         if (btn) {
           btn.onclick = (e) => {
             e.stopPropagation();
@@ -108,11 +129,13 @@
 
         el.onmouseenter = () => {
           el.style.width = '100px';
-          el.style.height = '150px';
+          el.style.height = '155px';
           btn.style.display = 'block';
           progressBar.style.display = 'block';
           progressBarContainer.style.display = 'block';
-          el.style.zIndex = 10
+          catTitle.style.display = 'block';
+ el.style.zIndex = '9999';           
+   highlightMarker(d);
         };
 
         el.onmouseleave = () => {
@@ -121,6 +144,7 @@
           btn.style.display = 'none';
           progressBar.style.display = 'none';
           progressBarContainer.style.display = 'none';
+          catTitle.style.display = 'none';
           el.style.zIndex = 1
 
         };
@@ -151,6 +175,12 @@
         }
       }
     });
+
+    function highlightMarker(markerData) {
+  const currentData = globe.htmlElementsData();
+  const filtered = currentData.filter(d => d !== markerData);
+  globe.htmlElementsData([...filtered, markerData]);
+}
   </script>
 </body>
 </html>
