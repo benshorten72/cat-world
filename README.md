@@ -1,5 +1,5 @@
 # Cat World
-(cat-world.eu)
+[Cat World](https://cat-world.eu)
 ## About
 Cat world is a simple webapp that allows you to upload an image of a cat and a soundbit of it meowing to somewhere on an interactable globe. 
 
